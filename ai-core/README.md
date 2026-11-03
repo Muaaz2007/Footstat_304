@@ -55,3 +55,10 @@ Leaky, sparse and cosmetic columns are removed; heights are repaired.
 
 Labels describe the gap between the model's estimate and the dataset's recorded value,
 not a real-world scouting judgement.
+
+## Role in the larger system
+
+This subsystem supports the whole project by producing predicted market value and the
+comparison with recorded value. The dashboard is expected to use the prepared prediction
+output described in `INTERFACE_FOR_DASHBOARD.md`, rather than retraining the model on
+every use.
