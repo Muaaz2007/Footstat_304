@@ -1,0 +1,15 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/claude/football-ai-system
+collecting ... collected 7 items
+
+tests/test_prototype.py::test_dataset_loads PASSED                       [ 14%]
+tests/test_prototype.py::test_no_leaky_features PASSED                   [ 28%]
+tests/test_prototype.py::test_height_repaired PASSED                     [ 42%]
+tests/test_prototype.py::test_model_frame_has_no_missing_target PASSED   [ 57%]
+tests/test_prototype.py::test_clean_export PASSED                        [ 71%]
+tests/test_prototype.py::test_classify_rules PASSED                      [ 85%]
+tests/test_prototype.py::test_predictions_table PASSED                   [100%]
+
+============================== 7 passed in 1.81s ===============================
