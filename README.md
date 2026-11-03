@@ -28,11 +28,12 @@ The project folder structure is intended to separate these concerns so that each
 
 ## Folder structure
 
-- `ai-core/` - AI subsystem prototype, including preprocessing, model comparison, prediction, evaluation, and outputs
-- `ai/` - place for AI-related work aligned with the project structure
-- `backend/data/` - place for the backend/data layer
-- `frontend/` - place for the dashboard/interface work
-- `data/` - place for project data
+- `ai-core/` - AI subsystem prototype (offline pipeline): preprocessing, model comparison, prediction, evaluation, outputs
+- `ai/` - runtime AI module for predicting a single player on demand
+- `backend/` - runtime service: the data access layer and the JSON API the dashboard calls
+- `backend/data/` - loading, validation and query logic for the prediction table
+- `frontend/` - the dashboard/interface (not built yet)
+- `data/` - notes on where the project data lives, see `data/README.md`
 
 ## How the AI subsystem fits in
 
@@ -83,13 +84,16 @@ The AI subsystem prototype is the most developed part so far. It includes:
 - prediction and evaluation output
 - supporting output files
 
-The rest of the system, such as the dashboard and backend/data layer, is organised in the repository but still needs to be built out and connected to the AI output.
+The backend part of the runtime system has now been implemented. It reads the prediction
+table produced by the AI subsystem, validates it against the interface contract, and serves
+it through a JSON API for the dashboard. It also has a unit test suite.
 
 So the current status is:
 
-- AI subsystem: prototype exists
-- dashboard/interface: structure prepared, integration pending
-- backend/data layer: structure prepared, integration pending
+- AI subsystem: prototype complete, producing predictions and evaluations
+- backend/data layer: implemented and tested
+- AI runtime (single-player prediction): implemented, needs the AI dependencies to run
+- dashboard/interface: not started
 
 ## How to run the AI part
 
@@ -102,6 +106,32 @@ The AI subsystem can be run locally as a prototype. In general, the workflow is:
 5. run prediction and evaluation
 
 Exact steps should follow the instructions inside `ai-core/`.
+
+## How to run the backend
+
+The backend reads the prediction table and serves it as JSON. It needs only Python 3.9 or
+newer, with nothing to install.
+
+```bash
+python -m backend.api                    # http://127.0.0.1:8000
+python -m backend.api --port 8080        # different port
+python -m backend.api --data some.csv    # different prediction table
+```
+
+Useful routes:
+
+- `GET /api/health` - service and data status
+- `GET /api/summary` - dataset totals, evaluation counts, top movers
+- `GET /api/players?search=messi` - searchable player list
+- `GET /api/players/1` - one player's full evaluation
+
+Full route documentation, query parameters and error responses are in `backend/README.md`.
+
+Run the backend tests with:
+
+```bash
+python -m unittest discover -s backend/tests -t .
+```
 
 ## What still needs to be done
 
@@ -123,3 +153,7 @@ It does not claim to determine the true market value of a player. The results ar
 - `ai-core/MARKET_VALUE_LIMITATION_AND_STRATEGY.md` - explains the market value data limitation and the tradeoff strategy used
 - `ai-core/INTERFACE_FOR_DASHBOARD.md` - describes the AI-to-dashboard interface
 - `ai-core/README.md` - describes the AI subsystem prototype itself
+- `backend/README.md` - backend structure, routes and how to run it
+- `ai/README.md` - the runtime single-player prediction module
+- `data/README.md` - where each data file lives
+- `docs/IMPLEMENTATION_NOTES.md` - what was implemented in the backend, why, and how it was verified
