@@ -175,7 +175,7 @@ through the paid Actor (about $0.018). No values were invented.
 | --- | --- | --- |
 | Backend tests | `python -m unittest discover -s backend/tests -t .` | **39 tests, OK** on a bare Python and on the venv |
 | Live inference tests | `.venv/Scripts/python -m unittest discover -s ai/tests -t .` | **6 tests, OK** |
-| Prototype suite | `.venv/Scripts/python -m pytest ai-core/tests -q` | 3 passed, 4 skipped (raw dataset absent — see section 8) |
+| Prototype suite | `.venv/Scripts/python -m pytest ai-core/tests -q` | **7 passed** (raw dataset now included) |
 | Compile | `python -m compileall backend ai ai-core/ai` | clean |
 | Live HTTP | `python -m backend.api` + requests | health/player/summary 200; bad sort and limit 400; unknown player 404; `POST /api/predict` 200 with a real record, 400 on missing body or features, 404 on an unknown POST route |
 
@@ -183,15 +183,13 @@ through the paid Actor (about $0.018). No values were invented.
 
 | # | Item | Effect | Owner |
 | --- | --- | --- | --- |
-| 1 | `ai-core/data/raw/fifa_players.csv` is not in the repo | pipeline cannot be re-run or retrained; 4 prototype tests skip | data owner |
+| 1 | ~~raw dataset absent~~ **resolved**: `ai-core/data/raw/fifa_players.csv` is committed | pipeline can be re-run and retrained; all 7 prototype tests run | done |
 | 2 | `data/reference/current_values.csv` is empty | the then/now drift claim has no numbers yet | data owner |
 | 3 | Dashboard not built | no user interface | frontend |
 | 4 | No authentication | fine for a local demo; must be stated, not implied | known limitation |
 | 5 | Model bundle untracked from git | regenerable; keeps the repository small | handled here |
 
-Item 1 is the only real risk to the submission: an examiner cannot reproduce the training
-run without it. Everything downstream is committed, so the system still runs and demonstrates
-end to end.
+Item 1 was the only real risk to the submission, and it is now closed: see section 10.
 
 ## 9. Honest limitations to state in the report
 
@@ -201,3 +199,34 @@ end to end.
 - The 255 players with no recorded value get a prediction and the label "No recorded value" —
   no comparison is invented for them.
 - Live prediction needs the AI dependencies installed; the dashboard's main path does not.
+
+## 10. Reproduction run (raw dataset restored)
+
+The raw dataset was obtained from Kaggle (`maso0dahmed/football-players-data`, "Football
+Players Data", from sofifa.com), committed to `ai-core/data/raw/fifa_players.csv`, and used to
+re-run the whole AI pipeline from scratch.
+
+### File check before running
+
+| Check | Expected | Found |
+| --- | --- | --- |
+| Rows | 17,954 | 17,954 |
+| Columns | 51 (52 after `player_id` is added) | 51 |
+| Players with no recorded value | 255 | 255 |
+| Corrupted heights still present | yes (raw file) | yes |
+| Columns `release_clause_euro`, `wage_euro`, `body_type`, national team | present | present |
+
+### Pipeline output vs the previously committed results
+
+| Output | Result |
+| --- | --- |
+| `thresholds.json` | **byte-identical** — `k_log = 0.09492490316094522`, `robust_sigma = 0.04746245158047261` |
+| `player_predictions.csv` | **byte-identical** |
+| `players_clean.csv` | **byte-identical** |
+| Label counts | 15,329 Fairly Valued / 1,199 Potentially Undervalued / 1,171 Potentially Overvalued / 255 no value — identical |
+| `model_comparison.csv`, `error_breakdown.csv`, `rf_feature_importance.csv` | identical to the 9th significant digit, differences only in the 10th+ (e.g. RF test MAE 163,687.36096015**494** vs ...**474**) — floating-point noise between library builds, not a different model |
+| Prototype tests | **7 passed, 0 skipped** |
+
+The conclusion for the report is now a verified claim rather than an intention: **the AI
+subsystem is reproducible from the committed raw data with the pinned dependency versions.**
+The thresholds, the evaluation table and every headline metric regenerate exactly.

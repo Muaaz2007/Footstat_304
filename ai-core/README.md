@@ -15,7 +15,9 @@ python predict_evaluate.py   # predicts every player, sets thresholds, saves the
 cd .. && pytest -q           # smoke tests
 ```
 
-Put `fifa_players.csv` in `data/raw/` first. All randomness uses seed 42.
+`data/raw/fifa_players.csv` is included (17,954 rows, from Kaggle). All randomness uses seed 42,
+and a full re-run reproduces the committed outputs — see `data/raw/README.md` for the
+verification table.
 
 ## Files
 

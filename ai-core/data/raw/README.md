@@ -1,4 +1,4 @@
-# Raw dataset (not stored in this repository)
+# Raw dataset
 
 The AI pipeline reads its input from:
 
@@ -6,55 +6,63 @@ The AI pipeline reads its input from:
 ai-core/data/raw/fifa_players.csv
 ```
 
-That file is **not** in the repository, because it is a third-party dataset and is large.
-Everything downstream of it (the cleaned dataset, the prediction table, the model bundle) is
-already committed, so the rest of the system runs without it. Only the training and
-preprocessing steps need the original file.
+The file **is included** in this repository (3.6 MB, 17,954 players, 51 columns). It is the
+original source data, before the pipeline adds `player_id` and repairs anything.
 
-## Why this matters
-
-Without this file the pipeline cannot be re-run or re-trained, so these four prototype tests
-are skipped rather than run:
-
-```
-test_dataset_loads
-test_height_repaired
-test_model_frame_has_no_missing_target
-test_clean_export
-```
-
-They report `skipped` with the reason, instead of failing with `FileNotFoundError`.
-
-## What the file must contain
+## Provenance
 
 | Property | Value |
 | --- | --- |
-| Rows | 17,954 players, no ID column (the pipeline adds `player_id`) |
-| Columns | 52, as delivered by the source |
-| Overlap check | `preprocessing.py` needs `positions`, `height_cm`, `weight_kgs`, `age`, `overall_rating`, `potential`, `preferred_foot`, `value_euro`, the 29 skill columns, plus `release_clause_euro`, `wage_euro`, `body_type` and the national-team columns that get dropped |
+| Source | Kaggle: `maso0dahmed/football-players-data` ("Football Players Data", from sofifa.com) |
+| URL | https://www.kaggle.com/datasets/maso0dahmed/football-players-data |
+| File in archive | `fifa_players.csv` |
+| Retrieved | 4 November 2026 |
+| Size | 3,664,954 bytes |
+| Rows / columns | 17,954 / 51 (the pipeline adds `player_id`, giving 52) |
 
-The column names are listed in `ai-core/ai/preprocessing.py`: `SKILLS`, `NUMERIC_FEATURES`,
-`CATEGORICAL_FEATURES`, `LEAKY`, `SPARSE`, `COSMETIC`.
+If the Kaggle licence is ever questioned, replace the committed file with this page's
+download instructions and keep the rest of the repository unchanged: the raw file is only
+needed to re-run training, and every output is committed.
 
-## How to restore it
+## What it contains
 
-1. Get the dataset from the source the group used (FIFA player dataset, 17,954 rows).
-2. Save it as `ai-core/data/raw/fifa_players.csv` with the same column names.
-3. Check it loads:
+| Property | Value |
+| --- | --- |
+| Players with a recorded value | 17,699 |
+| Players with no recorded value | 255 |
+| Corrupted heights present | yes — `152.40` and `154.94` cm, repaired by `preprocessing.py` |
+| Columns `release_clause_euro`, `wage_euro`, `body_type` | present; dropped as leaky, leaky and cosmetic |
+| National-team columns | present; dropped as 95% missing |
+
+Column names the pipeline relies on are listed in `ai-core/ai/preprocessing.py`:
+`SKILLS`, `NUMERIC_FEATURES`, `CATEGORICAL_FEATURES`, `LEAKY`, `SPARSE`, `COSMETIC`.
+
+## Reproducing the pipeline
 
 ```bash
 cd ai-core
-python ai/preprocessing.py     # prints "17954 players loaded, 17699 with a recorded value"
+pip install -r requirements.txt      # pinned versions, including scikit-learn 1.8.0
+
+cd ai
+python preprocessing.py      # -> data/processed/players_clean.csv
+python train_compare.py      # ridge vs random forest
+python predict_evaluate.py   # out-of-fold predictions, thresholds, model bundle
 ```
 
-4. Then the tests run in full:
+A full re-run on this file was verified to reproduce the committed results exactly:
+
+| Output | Result |
+| --- | --- |
+| `thresholds.json` | byte-identical (`k_log = 0.09492490316094522`) |
+| `player_predictions.csv` | byte-identical |
+| `data/processed/players_clean.csv` | byte-identical |
+| `model_comparison.csv`, `error_breakdown.csv`, `rf_feature_importance.csv` | differ only from the 10th significant digit down (floating-point noise between library builds) |
+| Label counts | 15,329 / 1,199 / 1,171 / 255 — identical |
+| Prototype tests | 7 passed |
+
+Afterwards, run the suites:
 
 ```bash
 python -m pytest ai-core/tests -q
+python -m unittest discover -s backend/tests -t .
 ```
-
-## For the report
-
-State the source, the version and the date you downloaded it, and whether the licence allows
-redistribution. Do not commit the file if the licence does not allow it — documenting how to
-obtain it is enough, and that is what this page does.
