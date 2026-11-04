@@ -37,7 +37,15 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 ROOT = Path(__file__).resolve().parents[1]
-BUNDLE_PATH = ROOT / "ai-core" / "outputs" / "market_value_model.joblib"
+
+# The prototype has saved the bundle in two places: inside outputs/ and directly
+# in ai-core/. Check both, so a moved file is found instead of silently breaking
+# live prediction.
+BUNDLE_CANDIDATES = (
+    ROOT / "ai-core" / "outputs" / "market_value_model.joblib",
+    ROOT / "ai-core" / "market_value_model.joblib",
+)
+BUNDLE_PATH = BUNDLE_CANDIDATES[0]
 
 UNDER = "Potentially Undervalued"
 FAIR = "Fairly Valued"
@@ -62,13 +70,32 @@ def load_bundle(path: Optional[Path] = None) -> Dict[str, Any]:
     _require_dependencies()
     import joblib
 
-    target = Path(path) if path is not None else BUNDLE_PATH
-    if not target.exists():
-        raise FileNotFoundError(
-            f"Model bundle not found: {target}\n"
-            "Run ai-core/ai/predict_evaluate.py first to create it."
-        )
+    if path is not None:
+        target = Path(path)
+    else:
+        target = next((p for p in BUNDLE_CANDIDATES if p.exists()), None)
+        if target is None:
+            looked = "\n  ".join(str(p) for p in BUNDLE_CANDIDATES)
+            raise FileNotFoundError(
+                "Model bundle not found. Looked in:\n  " + looked + "\n"
+                "Run ai/predict_evaluate.py inside ai-core/ to create it."
+            )
     return joblib.load(target)
+
+
+def _coerce(value: Any) -> Any:
+    """Turn numeric strings into numbers, e.g. values read straight from a CSV.
+
+    Categorical features (position group, preferred foot) are left as text, since
+    the model was trained with those as categories.
+    """
+    if isinstance(value, str):
+        text = value.strip()
+        try:
+            return float(text)
+        except ValueError:
+            return text
+    return value
 
 
 def classify(predicted: float, actual: Optional[float], k: float) -> str:
@@ -115,19 +142,23 @@ def predict_player_value(
             "Player record is missing required feature(s): " + ", ".join(missing)
         )
 
-    frame = pd.DataFrame([{name: player[name] for name in features}])
+    frame = pd.DataFrame([{name: _coerce(player[name]) for name in features}])
     log_prediction = float(bundle["model"].predict(frame)[0])
     predicted = math.exp(log_prediction)
 
     k = float(bundle["thresholds"]["k_log"])
     actual = None if actual_value_eur is None else float(actual_value_eur)
 
-    difference = None if actual is None else predicted - actual
-    relative = None if not actual else (predicted - actual) / actual
+    # Report the value rounded to thousands, as the prediction table does, and
+    # derive the difference from that same rounded figure. Otherwise the numbers
+    # shown to the user would not add up.
+    reported = float(round(predicted, -3))
+    difference = None if actual is None else reported - actual
+    relative = None if not actual else (reported - actual) / actual
 
     return {
         "actual_value_eur": actual,
-        "predicted_value_eur": round(predicted, -3),
+        "predicted_value_eur": reported,
         "value_difference_eur": None if difference is None else round(difference, 2),
         "relative_difference": None if relative is None else round(relative, 4),
         "evaluation": classify(predicted, actual, k),

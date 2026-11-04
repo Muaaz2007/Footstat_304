@@ -32,15 +32,25 @@ way.
 
 ### Requirements
 
-This module needs the AI subsystem dependencies and a trained model:
+This module needs the AI subsystem dependencies and a trained model bundle:
 
 ```bash
-pip install -r ai-core/requirements.txt
-python ai-core/ai/predict_evaluate.py     # creates outputs/market_value_model.joblib
+python -m venv .venv
+.venv/Scripts/python -m pip install -r ai-core/requirements.txt   # Windows
+# .venv/bin/python -m pip install -r ai-core/requirements.txt     # macOS/Linux
 ```
 
-If the bundle or the dependencies are missing, the module raises an error that says what to
-do, rather than silently returning a guess.
+The bundle is looked for in `ai-core/outputs/market_value_model.joblib` and then in
+`ai-core/market_value_model.joblib`, so it works whichever place it was saved to. If it is
+missing, the module says so and names the paths it checked instead of silently returning a
+guess.
+
+To recreate the bundle, run `python ai/predict_evaluate.py` inside `ai-core/`, which needs
+`ai-core/data/raw/fifa_players.csv`.
+
+A note on versions: the saved bundle was trained with scikit-learn 1.8.0. Loading it with a
+different version raises an `InconsistentVersionWarning`. Predictions still come out
+sensible, but pin the version if the results must be reproducible exactly.
 
 ### Example
 
@@ -53,7 +63,19 @@ result = predict_player_value(features, actual_value_eur=45_000_000)
 
 `features` must contain every feature name the model was trained on. The list is stored
 inside the bundle (`bundle["features"]`), so it always matches the saved model instead of
-being duplicated by hand.
+being duplicated by hand. Values may be numbers or numeric strings, so a record read from a
+CSV or a JSON request works without extra conversion.
+
+### Tests
+
+The module has its own tests, which skip themselves when the dependencies are absent:
+
+```bash
+.venv/Scripts/python -m unittest discover -s ai/tests -t . -v
+```
+
+They check the bundle contents, the threshold rule at its boundaries, the shape of the
+result, a player with no recorded value, a missing feature, and a missing bundle.
 
 ## Relationship to the interface document
 

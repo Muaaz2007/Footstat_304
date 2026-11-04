@@ -23,7 +23,7 @@ is what this work adds.
 | --- | --- |
 | `backend/data/loader.py` | Loads `player_predictions.csv`, converts each column to the correct type, validates the file against the interface contract, and indexes players by ID |
 | `backend/data/queries.py` | Search, filter, sort, paginate, summarise, name lookup, and the metadata the dashboard needs for its filters |
-| `backend/api.py` | JSON HTTP API with seven routes, consistent error responses, and CORS for the dashboard |
+| `backend/api.py` | JSON HTTP API with seven read routes plus `POST /api/predict` for live scoring, consistent error responses, and CORS for the dashboard |
 | `backend/tests/test_data_layer.py` | Unit tests for loading, validation and query behaviour |
 | `backend/tests/test_api.py` | Tests that start the real server and call it over HTTP |
 | `ai/live_inference.py` | Loads the saved model bundle and scores one player on demand, using the same threshold rule as the prototype |
@@ -86,17 +86,66 @@ The tests check behaviour that matters for the interface:
 Because the tests run against the real prediction table, they also act as a check that the
 AI output still matches the interface contract.
 
-**Not verified here:** `ai/live_inference.py` was syntax-checked but not executed, because
-this machine does not have pandas or scikit-learn installed. It needs
-`pip install -r ai-core/requirements.txt` and a trained model bundle
-(`python ai-core/ai/predict_evaluate.py`) before it can run.
+### Live inference, run against the real model
+
+`ai/live_inference.py` was run in a local virtual environment (`python -m venv .venv`,
+`pip install -r ai-core/requirements.txt`) using the saved bundle and real players from
+`ai-core/data/processed/players_clean.csv`:
+
+| Player | Recorded value | Live prediction | Evaluation |
+| --- | --- | --- | --- |
+| L. Messi | 110,500,000 | 97,694,000 | Potentially Overvalued |
+| S. Gnabry | 34,000,000 | 33,538,000 | Fairly Valued |
+| J. Castillo | 375,000 | 373,000 | Fairly Valued |
+| A. Granqvist | no value | 8,972,000 | No recorded value |
+
+The live numbers differ from `player_predictions.csv` for the same player, and that is
+expected: the table holds out-of-fold predictions (a model that never saw the player),
+while the live path uses the final model trained on all valued players. Live inference
+answers "what does the model say about this attributes profile", not "how did the model do
+on this player". Both are correct; they answer different questions.
+
+Three problems were found and fixed while doing this:
+
+- the saved bundle sits in `ai-core/`, not `ai-core/outputs/`, so the module now looks in
+  both places instead of failing on the documented path
+- the module now accepts numeric strings, so a record read from a CSV or a JSON request
+  works without extra conversion
+- the difference was calculated from the unrounded prediction while the reported value was
+  rounded to thousands, so `predicted - actual` did not equal the shown difference. The
+  difference and ratio are now derived from the reported value, as the prediction table
+  does, so the dashboard's numbers add up
+
+### Version caveat
+
+The bundle was trained with scikit-learn 1.8.0 and loaded here with 1.9.1, which prints an
+`InconsistentVersionWarning`. The predictions were sensible, but for a reproducible
+submission the version should be pinned to the one used for training, or the bundle
+regenerated. Regenerating needs `ai-core/data/raw/fifa_players.csv`, which is not in the
+repository.
+
+### Live inference tests
+
+`ai/tests/test_live_inference.py` covers the bundle contents, the threshold rule at its
+boundaries, the shape of the result, a player with no recorded value, a missing feature and
+a missing bundle. These tests skip themselves when pandas or joblib is absent, so the
+backend suite still runs on a machine without the AI dependencies.
+
+Final state of the checks:
+
+| Command | Result |
+| --- | --- |
+| `python -m unittest discover -s backend/tests -t .` | 39 tests, OK (no AI dependencies needed) |
+| `.venv/Scripts/python -m unittest discover -s ai/tests -t .` | 6 tests, OK |
+| `.venv/Scripts/python -m pytest ai-core/tests -q` | 3 passed, 4 skipped (raw dataset not in the repository) |
+| `python -m backend.api` then HTTP requests | health, player, summary return 200; bad sort and limit return 400; unknown player returns 404; `POST /api/predict` returns 200 for a real record |
 
 ## 5. What remains
 
 - **Frontend**: deliberately untouched in this piece of work. It now has a documented API
   to call and a contract to follow.
-- **Live inference run-through**: needs the AI dependencies installed to exercise the
-  single-player path end to end.
+- **Version pinning for the model bundle**: decide whether to pin scikit-learn to 1.8.x or
+  regenerate the bundle, so results stay reproducible.
 - **Serving the dashboard from one place**: the API and the frontend currently run
   separately. If the finished product should start with a single command, that wiring
   belongs in the frontend work.

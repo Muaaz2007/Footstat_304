@@ -11,8 +11,18 @@ from preprocessing import FEATURES, LEAKY, SPARSE, clean, export_clean, load_raw
 from predict_evaluate import FAIR, NONE, OVER, UNDER, classify, predict_player  # noqa: E402
 
 OUT = Path(__file__).resolve().parents[1] / "outputs"
+RAW = Path(__file__).resolve().parents[1] / "data" / "raw" / "fifa_players.csv"
+
+# The raw FIFA dataset is not stored in this repository. Anything that needs it is
+# skipped with a reason, instead of failing with a confusing FileNotFoundError.
+# See ai-core/data/raw/README.md to restore the file.
+requires_raw = pytest.mark.skipif(
+    not RAW.exists(),
+    reason="needs ai-core/data/raw/fifa_players.csv (see ai-core/data/raw/README.md)",
+)
 
 
+@requires_raw
 def test_dataset_loads():
     df = load_raw()
     assert df.shape == (17954, 52) and df.player_id.is_unique
@@ -22,16 +32,19 @@ def test_no_leaky_features():
     assert not set(LEAKY) & set(FEATURES)
 
 
+@requires_raw
 def test_height_repaired():
     h = clean(load_raw()).height_cm
     assert not h.isin([152.40, 154.94]).any()
 
 
+@requires_raw
 def test_model_frame_has_no_missing_target():
     _, X, y = model_frame(clean(load_raw()))
     assert len(X) == 17699 and not y.isna().any() and not X.isna().any().any()
 
 
+@requires_raw
 def test_clean_export(tmp_path):
     out = export_clean(clean(load_raw()), tmp_path / "players_clean.csv")
     saved = pd.read_csv(tmp_path / "players_clean.csv")

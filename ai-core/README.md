@@ -26,6 +26,9 @@ Put `fifa_players.csv` in `data/raw/` first. All randomness uses seed 42.
 | `ai/train_compare.py` | 70/15/15 split, MAE / RMSE / R2 etc., 5-fold CV, error breakdown, feature importance |
 | `ai/predict_evaluate.py` | Out-of-fold predictions, thresholds, categories, saved final model, `predict_player()` |
 | `tests/test_prototype.py` | Smoke tests for loading, leakage, cleaning, classification and the output table |
+| `ai/fetch_current_values.py` | Optional: fetches current market values from Transfermarkt through an Apify Actor (paid, needs `APIFY_API_TOKEN`) |
+| `ai/build_reference_values.py` | Turns that raw result into `data/reference/current_values.csv` |
+| `ai/compare_then_now.py` | Compares the dataset's snapshot values with current values: drift, and whether the labels change |
 
 ## Cleaned dataset (`data/processed/players_clean.csv`)
 
@@ -55,6 +58,17 @@ Leaky, sparse and cosmetic columns are removed; heights are repaired.
 
 Labels describe the gap between the model's estimate and the dataset's recorded value,
 not a real-world scouting judgement.
+
+## The math and the buffer, in numbers
+
+`BUFFER_MATH_AND_VALUE_CHECK.md` explains where `k` comes from, how wide the buffer is in
+euros at different value levels, what happens if it is narrowed or widened (with counts),
+and how to check how much the dataset's values have aged by comparing them with current
+Transfermarkt values.
+
+In short: `k = 2 x robust sigma` of the model's out-of-fold log error = 0.0949, so the
+model must disagree with the recorded value by about 10% before a label is applied, and the
+buffer is about +/- 1M on a 10M player and +/- 10M on a 100M player.
 
 ## Role in the larger system
 

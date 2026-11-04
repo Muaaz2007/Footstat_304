@@ -57,6 +57,66 @@ missing, the server refuses to start and says so, rather than serving an empty d
 | `GET /api/players/{player_id}` | One player's full evaluation |
 | `GET /api/players/lookup?name=&birth_date=` | Players matching a name, optionally narrowed by birth date |
 
+### `POST /api/predict` (live prediction)
+
+Scores one player from a set of attributes, using the trained model in
+`ai-core/market_value_model.joblib`. Use it for a player who is not in the prediction table,
+or to explain a single prediction. This is the **only** route that needs the AI dependencies
+(pandas, scikit-learn, joblib); without them it answers `503` with an explanation and every
+other route keeps working.
+
+Body:
+
+```json
+{
+  "features": {
+    "age": 27, "height_cm": 180, "weight_kgs": 75,
+    "overall_rating": 84, "potential": 86, "potential_gap": 2,
+    "position_group": "FWD", "preferred_foot": "Right"
+  },
+  "actual_value_eur": 45000000
+}
+```
+
+Every feature name the model was trained with must be present; the list is 40 names and it
+is stored inside the bundle (`bundle["features"]`). `actual_value_eur` is optional: without
+it you get a prediction with no comparison.
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/api/predict \
+  -H "Content-Type: application/json" \
+  -d '{"features": {"age": 27}}'
+```
+
+Response (abridged):
+
+```json
+{
+  "prediction": {
+    "actual_value_eur": null,
+    "predicted_value_eur": 29354000.0,
+    "value_difference_eur": null,
+    "relative_difference": null,
+    "evaluation": "No recorded value",
+    "prediction_type": "live model",
+    "threshold_k_log": 0.09492490316094522
+  },
+  "source": "ai/live_inference.py"
+}
+```
+
+| Situation | Status | Code |
+| --- | --- | --- |
+| Predicted | `200` | - |
+| Missing or invalid JSON body | `400` | `bad_request` |
+| `features` missing, empty, or a feature absent | `400` | `bad_request` |
+| `actual_value_eur` not a number | `400` | `bad_request` |
+| AI dependencies or model bundle not installed | `503` | `live_inference_unavailable` |
+| Another path | `404` | `not_found` |
+
+The bundle is loaded once and kept in memory, so the first prediction is slower than the
+rest.
+
 ### Query parameters for `GET /api/players`
 
 | Parameter | Meaning |

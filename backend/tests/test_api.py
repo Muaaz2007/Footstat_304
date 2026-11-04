@@ -42,6 +42,18 @@ class TestApi(unittest.TestCase):
             body = json.loads(error.read().decode("utf-8"))
             return error.code, body, dict(error.headers)
 
+    def post(self, path: str, payload, raw_body: bytes | None = None):
+        url = f"http://127.0.0.1:{self.port}{path}"
+        body = raw_body if raw_body is not None else json.dumps(payload).encode("utf-8")
+        request = urllib.request.Request(
+            url, data=body, headers={"Content-Type": "application/json"}, method="POST"
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=60) as response:
+                return response.status, json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as error:
+            return error.code, json.loads(error.read().decode("utf-8"))
+
     def test_index_lists_endpoints(self):
         status, body, _ = self.get("/")
         self.assertEqual(status, 200)
@@ -113,6 +125,55 @@ class TestApi(unittest.TestCase):
 
     def test_unknown_route_returns_404(self):
         status, body, _ = self.get("/api/nope")
+        self.assertEqual(status, 404)
+        self.assertIn("No route", body["error"]["message"])
+
+    def test_predict_route_is_listed(self):
+        _, body, _ = self.get("/")
+        self.assertIn("POST /api/predict", body["endpoints"])
+
+    def test_predict_without_a_body_returns_400(self):
+        status, body = self.post("/api/predict", None, raw_body=b"")
+        self.assertEqual(status, 400)
+        self.assertEqual(body["error"]["code"], "bad_request")
+
+    def test_predict_with_invalid_json_returns_400(self):
+        status, body = self.post("/api/predict", None, raw_body=b"{not json")
+        self.assertEqual(status, 400)
+        self.assertIn("JSON", body["error"]["message"])
+
+    def test_predict_without_features_returns_400(self):
+        status, body = self.post("/api/predict", {"actual_value_eur": 1000})
+        self.assertEqual(status, 400)
+        self.assertIn("features", body["error"]["message"])
+
+    def test_predict_answers_or_explains_missing_dependencies(self):
+        # The backend runs without pandas/scikit-learn; only this route needs them.
+        # Either it scores the player, or it says clearly that it cannot.
+        status, body = self.post(
+            "/api/predict", {"features": {"age": 27}, "actual_value_eur": 1000000}
+        )
+        self.assertIn(status, (200, 400, 503))
+        if status == 200:
+            self.assertIn("prediction", body)
+            self.assertIn("predicted_value_eur", body["prediction"])
+            self.assertEqual(body["prediction"]["prediction_type"], "live model")
+        else:
+            # 400 when the model scored it but features are missing (dependencies
+            # present); 503 when the AI dependencies are absent entirely.
+            self.assertIn(
+                body["error"]["code"], ("bad_request", "live_inference_unavailable")
+            )
+
+    def test_predict_rejects_a_non_numeric_actual_value(self):
+        status, body = self.post(
+            "/api/predict", {"features": {"age": 27}, "actual_value_eur": "a lot"}
+        )
+        self.assertEqual(status, 400)
+        self.assertIn("actual_value_eur", body["error"]["message"])
+
+    def test_unknown_post_route_returns_404(self):
+        status, body = self.post("/api/nope", {})
         self.assertEqual(status, 404)
         self.assertIn("No route", body["error"]["message"])
 
