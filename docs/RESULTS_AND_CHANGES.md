@@ -168,6 +168,7 @@ through the paid Actor (about $0.018). No values were invented.
 | `docs/IMPLEMENTATION_NOTES.md` | Backend/AI implementation record |
 | `docs/FRONTEND_INTEGRATION_STREAMLIT.md` | Streamlit hand-off with working code |
 | `docs/RESULTS_AND_CHANGES.md` | This file |
+| `docs/Footstat_304_Documentation_Pack.docx` | Word pack for the documentation lead: 18 sections, 32 tables, every verified number, the report structure and a pre-submission checklist |
 
 ## 7. Verification
 
