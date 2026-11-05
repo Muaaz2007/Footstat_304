@@ -1,5 +1,10 @@
 # Connecting the Streamlit dashboard to the backend
 
+**Status: implemented.** The dashboard is built in `frontend/` against exactly this
+contract; what follows is the guide that was used to build it, kept as the record of the
+interface and the traps. Screenshots and the verification run are in
+`docs/VERIFICATION_AND_SCREENSHOTS.md`.
+
 This is the hand-off for the frontend team. The backend is already running and documented;
 this page shows how to call it from Streamlit, which pieces to use, and the mistakes that
 will cost you an evening.
@@ -12,9 +17,15 @@ Streamlit app  --HTTP-->  backend API  -->  ai-core/outputs/player_predictions.c
       +----- or, for a player not in the table:  POST /api/predict --> trained model
 ```
 
-The dashboard never reads the CSV and never loads the model. It asks the API. That keeps
-the 2.6 MB table and the 47 MB model out of the web process, and it means the AI team can
-change the model without you changing any Streamlit code.
+The dashboard never loads the model and never recomputes a prediction: every value it
+shows comes from the API. It does read `players_clean.csv`, but only for the skill columns
+behind the profile page's attribute radar — those fields are not part of the prediction
+contract. The 47 MB model stays out of the web process, and the AI team can change the
+model without you changing any Streamlit code.
+
+When the API cannot be reached the dashboard falls back to the committed prediction table
+and labels itself "Offline snapshot" in the sidebar, so a demo survives a dead backend.
+That path exists for demos only — the API is the source of truth.
 
 ## 2. Run both services
 

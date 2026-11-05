@@ -1,8 +1,8 @@
 """Tests for the live single-player prediction path.
 
-These need the AI subsystem dependencies and the trained model bundle. When those
-are missing the tests are skipped with a message, so the backend suite can still
-be run on a machine without scikit-learn.
+These need the AI subsystem dependencies and the trained model bundle. When either
+is missing the tests are skipped with a message rather than failing, so a fresh
+clone of the repository reports "skipped" instead of a setup error.
 
 Run from the project root:
 
@@ -34,7 +34,15 @@ class TestLiveInference(unittest.TestCase):
         from ai import live_inference
 
         cls.mod = live_inference
-        cls.bundle = live_inference.load_bundle()
+        try:
+            cls.bundle = live_inference.load_bundle()
+        except FileNotFoundError as exc:
+            raise unittest.SkipTest(
+                "trained model bundle not built yet: run the AI pipeline "
+                f"(ai-core/ai/predict_evaluate.py) to create it\n{exc}"
+            ) from exc
+        if not CLEAN.exists():
+            raise unittest.SkipTest(f"cleaned attribute table not found: {CLEAN}")
         with open(CLEAN, newline="", encoding="utf-8") as handle:
             cls.players = {row["player_id"]: row for row in csv.DictReader(handle)}
 

@@ -186,7 +186,7 @@ through the paid Actor (about $0.018). No values were invented.
 | --- | --- | --- | --- |
 | 1 | ~~raw dataset absent~~ **resolved**: `ai-core/data/raw/fifa_players.csv` is committed | pipeline can be re-run and retrained; all 7 prototype tests run | done |
 | 2 | `data/reference/current_values.csv` is empty | the then/now drift claim has no numbers yet | data owner |
-| 3 | Dashboard not built | no user interface | frontend |
+| 3 | ~~Dashboard not built~~ **resolved**: `frontend/` — five pages, dark theme, player photographs, live API or labelled offline snapshot | a working interface, verified in `docs/VERIFICATION_AND_SCREENSHOTS.md` | done |
 | 4 | No authentication | fine for a local demo; must be stated, not implied | known limitation |
 | 5 | Model bundle untracked from git | regenerable; keeps the repository small | handled here |
 

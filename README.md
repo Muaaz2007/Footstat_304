@@ -32,7 +32,7 @@ The project folder structure is intended to separate these concerns so that each
 - `ai/` - runtime AI module for predicting a single player on demand
 - `backend/` - runtime service: the data access layer and the JSON API the dashboard calls
 - `backend/data/` - loading, validation and query logic for the prediction table
-- `frontend/` - the dashboard/interface (not built yet)
+- `frontend/` - the Streamlit dashboard (five pages) and its thin API client
 - `data/` - notes on where the project data lives, see `data/README.md`
 
 ## How the AI subsystem fits in
@@ -93,7 +93,7 @@ So the current status is:
 - AI subsystem: prototype complete, producing predictions and evaluations
 - backend/data layer: implemented and tested
 - AI runtime (single-player prediction): implemented, needs the AI dependencies to run
-- dashboard/interface: not started
+- dashboard/interface: implemented (Streamlit, five pages, live API with an offline snapshot fallback)
 
 ## How to run the AI part
 
@@ -133,13 +133,22 @@ Run the backend tests with:
 python -m unittest discover -s backend/tests -t .
 ```
 
+## Running the whole system
+
+```bash
+python -m backend.api --port 8000        # terminal 1 - the API
+streamlit run frontend/app.py            # terminal 2 - the dashboard
+```
+
+The dashboard reads the API when it is up and falls back to the committed CSV snapshot
+(labelled in the sidebar) when it is not. See `frontend/README.md`.
+
 ## What still needs to be done
 
-From a system point of view, the remaining work is mainly integration and completion:
+The three layers are now in place end to end, so the remaining work is finishing work:
 
-- finish the dashboard/frontend so users can view player information and evaluation results
-- connect the dashboard to the AI output through the defined interface
-- decide what belongs in the backend/data layer and implement it
+- keep the report and the documentation pack consistent with what the system delivers
+- decide whether the live single-player prediction page belongs in scope
 - keep the system description consistent with what the project actually delivers
 
 ## Notes on scope
@@ -157,3 +166,7 @@ It does not claim to determine the true market value of a player. The results ar
 - `ai/README.md` - the runtime single-player prediction module
 - `data/README.md` - where each data file lives
 - `docs/IMPLEMENTATION_NOTES.md` - what was implemented in the backend, why, and how it was verified
+- `docs/RESULTS_AND_CHANGES.md` - the verified result numbers and what changed in each piece of work
+- `docs/FRONTEND_INTEGRATION_STREAMLIT.md` - the interface the dashboard was built against
+- `docs/VERIFICATION_AND_SCREENSHOTS.md` - the end-to-end verification run, with dashboard and test screenshots
+- `frontend/README.md` - how to run the dashboard, and what each file does

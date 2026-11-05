@@ -69,7 +69,7 @@ tradeoff used because the dataset has no live market value.
 ## 4. How it was verified
 
 - `python -m compileall backend ai ai-core` — all modules compile.
-- `python -m unittest discover -s backend/tests -t .` — 32 tests covering the data layer,
+- `python -m unittest discover -s backend/tests -t .` — 39 tests covering the data layer,
   the queries and the API routes.
 
 The tests check behaviour that matters for the interface:
@@ -116,20 +116,22 @@ Three problems were found and fixed while doing this:
   difference and ratio are now derived from the reported value, as the prediction table
   does, so the dashboard's numbers add up
 
-### Version caveat
+### Version caveat (closed)
 
-The bundle was trained with scikit-learn 1.8.0 and loaded here with 1.9.1, which prints an
-`InconsistentVersionWarning`. The predictions were sensible, but for a reproducible
-submission the version should be pinned to the one used for training, or the bundle
-regenerated. Regenerating needs `ai-core/data/raw/fifa_players.csv`, which is not in the
-repository.
+The bundle is trained with scikit-learn 1.8.0 and `ai-core/requirements.txt` pins 1.8.0, so
+the `InconsistentVersionWarning` recorded here no longer appears. The pipeline was re-run
+from `ai-core/data/raw/fifa_players.csv` (now committed) and reproduced `thresholds.json`,
+`player_predictions.csv` and `players_clean.csv` byte for byte — see
+`docs/RESULTS_AND_CHANGES.md` section 10.
 
 ### Live inference tests
 
 `ai/tests/test_live_inference.py` covers the bundle contents, the threshold rule at its
 boundaries, the shape of the result, a player with no recorded value, a missing feature and
-a missing bundle. These tests skip themselves when pandas or joblib is absent, so the
-backend suite still runs on a machine without the AI dependencies.
+a missing bundle. They skip themselves when pandas or joblib is absent *and* when the
+trained bundle has not been built (`unittest.SkipTest` in `setUpClass`), so a fresh clone
+reports *skipped* rather than a setup error, and the backend suite still runs on a machine
+without the AI dependencies.
 
 Final state of the checks:
 
@@ -137,13 +139,16 @@ Final state of the checks:
 | --- | --- |
 | `python -m unittest discover -s backend/tests -t .` | 39 tests, OK (no AI dependencies needed) |
 | `.venv/Scripts/python -m unittest discover -s ai/tests -t .` | 6 tests, OK |
-| `.venv/Scripts/python -m pytest ai-core/tests -q` | 3 passed, 4 skipped (raw dataset not in the repository) |
+| `.venv/Scripts/python -m pytest ai-core/tests -q` | 7 passed (the raw dataset is committed) |
 | `python -m backend.api` then HTTP requests | health, player, summary return 200; bad sort and limit return 400; unknown player returns 404; `POST /api/predict` returns 200 for a real record |
 
 ## 5. What remains
 
-- **Frontend**: deliberately untouched in this piece of work. It now has a documented API
-  to call and a contract to follow.
+- **Frontend**: built. `frontend/` holds five pages (Overview, Player Explorer, Player
+  Profile, Compare, Model & Method) with a dark editorial theme, player photographs and a
+  labelled offline fallback. See `docs/VERIFICATION_AND_SCREENSHOTS.md`.
+- **Dashboard and API in one command**: still two terminals; the wiring belongs in the
+  frontend, and a wrapper script is the obvious next step.
 - **Version pinning for the model bundle**: decide whether to pin scikit-learn to 1.8.x or
   regenerate the bundle, so results stay reproducible.
 - **Serving the dashboard from one place**: the API and the frontend currently run

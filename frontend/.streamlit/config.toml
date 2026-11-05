@@ -1,0 +1,12 @@
+# Same theme as ../.streamlit/config.toml, so the dashboard looks identical
+# whether Streamlit is started from the repository root or from this folder.
+[theme]
+base = "dark"
+primaryColor = "#5EEAD4"
+backgroundColor = "#080D17"
+secondaryBackgroundColor = "#0F1728"
+textColor = "#E9EEF8"
+font = "sans serif"
+
+[browser]
+gatherUsageStats = false
