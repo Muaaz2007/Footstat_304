@@ -1,172 +1,55 @@
-# Footstat_304 - AI-Based Football Player Performance and Market Value Evaluation System
+# Footstat 304
 
-This repository contains the ICT304 group project for an AI-based football player performance and market value evaluation system.
+A football player evaluation system made of three layers: a backend, an AI model, and a Streamlit dashboard.
 
-The project is not just a machine-learning model. It is a system that combines data processing, AI-based market value prediction, comparison with recorded value, player evaluation, and a user-facing dashboard.
+## What it does
 
-## What the system does
+The backend reads the dataset of 17,954 players and serves one value estimate per player. The estimate comes from a model trained on each player's attributes and position. There are two ways to use it: the current prediction table, and a live endpoint that runs the model on a player outside the table.
 
-The system takes football player data, processes it, and uses an AI model to estimate a player's market value from player attributes. It then compares the estimated value with the recorded value available in the dataset and presents an evaluation to the user.
+The dashboard reads that estimate and shows it as a table, a single-player profile, a two-player comparison, and a short explanation of how the estimate is produced.
 
-The evaluation indicates whether a player appears potentially undervalued, fairly valued, or potentially overvalued relative to the model's estimate.
+Each player has a **recorded value** (from the dataset) and a **model estimate** (from the player's attributes). If the gap is small enough, the player is called **fairly valued**. If the estimate is below the record, the player is labeled **overvalued**. If the estimate is above the record, the player is labeled **undervalued**. The cut-off between those labels comes from the model's own error, so small differences are treated as noise.
 
-The overall workflow is:
+In the default view, around a thousand players are called potentially undervalued and around a thousand are called potentially overvalued, and most of the table is fairly valued.
 
-**Dataset -> Data Processing -> Feature Selection -> AI Market Value Prediction -> Predicted Market Value -> Comparison with Recorded Market Value -> Player Evaluation -> Dashboard**
+## What this is not
 
-## Main parts of the system
+This is an evaluation support tool. It does not give the true market value of a player. The recorded value is what the dataset says, not what the market paid, and the estimate is not a better market value either. The system is meant to help people analyse players, not to price them.
 
-The system is organised into a few logical parts:
+## Quick start
 
-- **Data** - the football player dataset and any processed data used by the system
-- **AI subsystem** - data cleaning, feature preparation, model training, model comparison, prediction, and evaluation
-- **Backend/data layer** - the data and service responsibilities that connect the AI output with the rest of the system
-- **Frontend** - the user-facing dashboard or interface that presents player information and evaluation results
-- **AI core** - the current AI prototype implementation and its supporting outputs
+- Backend on port 8000, dashboard on port 8501. There is currently no one-command start, so they still take two terminals.
+- Each layer has its own README: `backend/`, `ai/`, `ai-core/`, `data/`, and `frontend/`.
 
-The project folder structure is intended to separate these concerns so that each part can be developed and understood more clearly.
+## Documentation
 
-## Folder structure
+- `docs/IMPLEMENTATION_NOTES.md` - what was built and why
+- `docs/RESULTS_AND_CHANGES.md` - the verified numbers and what changed
+- `docs/FRONTEND_INTEGRATION_STREAMLIT.md` - the interface the dashboard was built against
+- `docs/VERIFICATION_AND_SCREENSHOTS.md` - the verification run with screenshots
+- `docs/ROUTE_TO_REPORT.md` - where each document maps onto a chapter in the Word pack
+- `ai-core/MARKET_VALUE_LIMITATION_AND_STRATEGY.md` - the market-value limitation and the tradeoff strategy
+- `ai-core/INTERFACE_FOR_DASHBOARD.md` - the dashboard interface
 
-- `ai-core/` - AI subsystem prototype (offline pipeline): preprocessing, model comparison, prediction, evaluation, outputs
-- `ai/` - runtime AI module for predicting a single player on demand
-- `backend/` - runtime service: the data access layer and the JSON API the dashboard calls
-- `backend/data/` - loading, validation and query logic for the prediction table
-- `frontend/` - the Streamlit dashboard (five pages) and its thin API client
-- `data/` - notes on where the project data lives, see `data/README.md`
 
-## How the AI subsystem fits in
+## Verification
 
-The AI subsystem is one part of the whole system. Its role is to:
+The quick summary is this:
 
-- clean and prepare the player data
-- select and prepare features
-- train and compare candidate AI techniques
-- choose a model
-- predict market value for players
-- compare predicted value with recorded value
-- produce an evaluation category
+- backend tests - 39 unit tests
+- ai runtime tests - 6 tests
+- pytest ai-core/tests - 7 tests
 
-The AI subsystem works mostly offline during development. It produces results that the rest of the system can use at runtime.
+All pass on the current machine on the current data and model. The AI runtime tests skip cleanly when the model bundle is absent, so a fresh clone reports skipped instead of an error.
 
-During normal dashboard use, the system does not need to retrain the model every time. Instead, the dashboard can use the prepared prediction results from the AI subsystem.
+## How the dashboard looks
 
-## Market value and the data limitation
-
-A key point in this project is that the dataset does not provide a fully accurate live market value for every player. The recorded value in the dataset is used as the available reference, but it has limitations.
-
-Because of this, the project uses a threshold/buffer tradeoff strategy around the model's predicted value when deciding the evaluation category. This means the system does not treat every small difference as meaningful. Instead, it uses a tolerance-based rule so the evaluation reflects a meaningful comparison rather than noise.
-
-This strategy is documented because it was a response to a real data limitation. Details are in `ai-core/MARKET_VALUE_LIMITATION_AND_STRATEGY.md`.
-
-The evaluation produced by the system should be understood as an **AI-based indication**, not an exact real-world valuation.
-
-## What the dashboard should show
-
-For a selected player, the system is intended to present:
-
-- player information
-- relevant player attributes
-- recorded market value, where available
-- predicted market value
-- the difference between predicted and recorded value
-- the evaluation result
-
-The AI subsystem exposes this information through a defined interface so the dashboard can use it consistently. That interface is described in `ai-core/INTERFACE_FOR_DASHBOARD.md`.
-
-## Current state of the project
-
-The AI subsystem prototype is the most developed part so far. It includes:
-
-- data preprocessing
-- feature preparation
-- comparison of two AI techniques
-- prediction and evaluation output
-- supporting output files
-
-The backend part of the runtime system has now been implemented. It reads the prediction
-table produced by the AI subsystem, validates it against the interface contract, and serves
-it through a JSON API for the dashboard. It also has a unit test suite.
-
-So the current status is:
-
-- AI subsystem: prototype complete, producing predictions and evaluations
-- backend/data layer: implemented and tested
-- AI runtime (single-player prediction): implemented, needs the AI dependencies to run
-- dashboard/interface: implemented (Streamlit, five pages, live API with an offline snapshot fallback)
-
-## How to run the AI part
-
-The AI subsystem can be run locally as a prototype. In general, the workflow is:
-
-1. install the Python dependencies
-2. prepare the raw dataset
-3. run preprocessing
-4. run model training and comparison
-5. run prediction and evaluation
-
-Exact steps should follow the instructions inside `ai-core/`.
-
-## How to run the backend
-
-The backend reads the prediction table and serves it as JSON. It needs only Python 3.9 or
-newer, with nothing to install.
-
-```bash
-python -m backend.api                    # http://127.0.0.1:8000
-python -m backend.api --port 8080        # different port
-python -m backend.api --data some.csv    # different prediction table
-```
-
-Useful routes:
-
-- `GET /api/health` - service and data status
-- `GET /api/summary` - dataset totals, evaluation counts, top movers
-- `GET /api/players?search=messi` - searchable player list
-- `GET /api/players/1` - one player's full evaluation
-
-Full route documentation, query parameters and error responses are in `backend/README.md`.
-
-Run the backend tests with:
-
-```bash
-python -m unittest discover -s backend/tests -t .
-```
-
-## Running the whole system
-
-```bash
-python -m backend.api --port 8000        # terminal 1 - the API
-streamlit run frontend/app.py            # terminal 2 - the dashboard
-```
-
-The dashboard reads the API when it is up and falls back to the committed CSV snapshot
-(labelled in the sidebar) when it is not. See `frontend/README.md`.
+The dashboard uses the same dark theme in every page. Player photos come straight from the committed assets, so they show up without a network connection. The most valuable players page shows a strip of six players with photos and values. The comparison page shows two player photos side by side and a radar of their attributes.
 
 ## What still needs to be done
 
-The three layers are now in place end to end, so the remaining work is finishing work:
+The three layers are in place end to end, so the remaining work is finishing work:
 
-- keep the report and the documentation pack consistent with what the system delivers
-- decide whether the live single-player prediction page belongs in scope
-- keep the system description consistent with what the project actually delivers
-
-## Notes on scope
-
-The system is designed as an AI-based evaluation support tool. It is meant to help users analyse players by combining AI prediction with a simple comparison and presentation workflow.
-
-It does not claim to determine the true market value of a player. The results are based on the data available and the model used, and the evaluation should be read in that context.
-
-## Related documents
-
-- `ai-core/MARKET_VALUE_LIMITATION_AND_STRATEGY.md` - explains the market value data limitation and the tradeoff strategy used
-- `ai-core/INTERFACE_FOR_DASHBOARD.md` - describes the AI-to-dashboard interface
-- `ai-core/README.md` - describes the AI subsystem prototype itself
-- `backend/README.md` - backend structure, routes and how to run it
-- `ai/README.md` - the runtime single-player prediction module
-- `data/README.md` - where each data file lives
-- `docs/IMPLEMENTATION_NOTES.md` - what was implemented in the backend, why, and how it was verified
-- `docs/RESULTS_AND_CHANGES.md` - the verified result numbers and what changed in each piece of work
-- `docs/FRONTEND_INTEGRATION_STREAMLIT.md` - the interface the dashboard was built against
-- `docs/VERIFICATION_AND_SCREENSHOTS.md` - the end-to-end verification run, with dashboard and test screenshots
-- `frontend/README.md` - how to run the dashboard, and what each file does
+- keep the report and the documentation consistent with what the system delivers
+- decide where the live single-player prediction page belongs
+- keep the description of what the system delivers up to date
