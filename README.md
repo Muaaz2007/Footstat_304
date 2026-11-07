@@ -10,7 +10,7 @@ The dashboard reads that estimate and shows it as a table, a single-player profi
 
 Each player has a **recorded value** (from the dataset) and a **model estimate** (from the player's attributes). If the gap is small enough, the player is called **fairly valued**. If the estimate is below the record, the player is labeled **overvalued**. If the estimate is above the record, the player is labeled **undervalued**. The cut-off between those labels comes from the model's own error, so small differences are treated as noise.
 
-In the default view, around a thousand players are called potentially undervalued and around a thousand are called potentially overvalued, and most of the table is fairly valued.
+In the default view, about 1,450 players are called potentially undervalued and about 1,500 are called potentially overvalued, and most of the table is fairly valued.
 
 ## What this is not
 

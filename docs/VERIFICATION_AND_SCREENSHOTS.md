@@ -1,5 +1,7 @@
 # Verification run and screenshots
 
+> **Note, 6 November 2026.** After this record was written, the random forest was tuned (`max_features` 0.5 → 1.0; see `ai-core/ai/tune_parameters.py` and Section 6.6 of the final report). Numbers below describe the earlier prototype model. Current figures are in `ai-core/outputs/` and in the final report.
+
 This page records what was actually run, on which date, and what it returned. Every
 number here came out of a command in this repository — none of it is estimated or
 copied from an earlier draft. Screenshots are captures of the running dashboard and

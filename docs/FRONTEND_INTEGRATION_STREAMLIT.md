@@ -1,5 +1,7 @@
 # Connecting the Streamlit dashboard to the backend
 
+> **Note, 6 November 2026.** After this record was written, the random forest was tuned (`max_features` 0.5 → 1.0; see `ai-core/ai/tune_parameters.py` and Section 6.6 of the final report). Numbers below describe the earlier prototype model. Current figures are in `ai-core/outputs/` and in the final report.
+
 **Status: implemented.** The dashboard is built in `frontend/` against exactly this
 contract; what follows is the guide that was used to build it, kept as the record of the
 interface and the traps. Screenshots and the verification run are in

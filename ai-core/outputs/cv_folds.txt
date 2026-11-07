@@ -1,4 +1,4 @@
 Split (seed 42): train 12389, validation 2655, test 2655
 5-fold CV on the training set, R2 on log(value_euro), KFold(5, shuffle=True, random_state=42)
 Linear regression (ridge): folds [0.9775, 0.9775, 0.9783, 0.9772, 0.9756]  mean 0.9772  sd 0.0009
-Random forest: folds [0.9947, 0.9945, 0.9946, 0.9942, 0.9932]  mean 0.9942  sd 0.0006
+Random forest: folds [0.9956, 0.9952, 0.9957, 0.9958, 0.9950]  mean 0.9954  sd 0.0003

@@ -49,15 +49,15 @@ python train_compare.py      # ridge vs random forest
 python predict_evaluate.py   # out-of-fold predictions, thresholds, model bundle
 ```
 
-A full re-run on this file was verified to reproduce the committed results exactly:
+A full re-run on this file was verified to reproduce the committed results exactly (re-checked on 6 November 2026 with the tuned random forest, `max_features=1.0`):
 
 | Output | Result |
 | --- | --- |
-| `thresholds.json` | byte-identical (`k_log = 0.09492490316094522`) |
+| `thresholds.json` | byte-identical (`k_log = 0.08063261758267146`) |
 | `player_predictions.csv` | byte-identical |
 | `data/processed/players_clean.csv` | byte-identical |
 | `model_comparison.csv`, `error_breakdown.csv`, `rf_feature_importance.csv` | differ only from the 10th significant digit down (floating-point noise between library builds) |
-| Label counts | 15,329 / 1,199 / 1,171 / 255 — identical |
+| Label counts | 14,750 / 1,452 / 1,497 / 255 — identical |
 | Prototype tests | 7 passed |
 
 Afterwards, run the suites:

@@ -29,12 +29,14 @@ def random_forest() -> Pipeline:
 
     Trees need no scaling and capture non-linear effects and interactions
     (e.g. age x potential) without hand-made terms.
+    max_features=1.0 was chosen by tune_parameters.py: every split may use all
+    features, which cut the validation median error from 3.50% (0.5) to 2.78%.
     """
     pre = ColumnTransformer([
         ("num", "passthrough", NUMERIC_FEATURES),
         ("cat", OneHotEncoder(handle_unknown="ignore"), CATEGORICAL_FEATURES),
     ])
-    rf = RandomForestRegressor(n_estimators=300, min_samples_leaf=2, max_features=0.5,
+    rf = RandomForestRegressor(n_estimators=300, min_samples_leaf=2, max_features=1.0,
                                n_jobs=-1, random_state=SEED)
     return Pipeline([("pre", pre), ("model", rf)])
 

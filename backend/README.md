@@ -88,7 +88,7 @@ curl -s -X POST http://127.0.0.1:8000/api/predict \
   -d '{"features": {"age": 27}}'
 ```
 
-Response (abridged):
+Response (abridged; the numbers depend on the model release):
 
 ```json
 {
@@ -99,7 +99,7 @@ Response (abridged):
     "relative_difference": null,
     "evaluation": "No recorded value",
     "prediction_type": "live model",
-    "threshold_k_log": 0.09492490316094522
+    "threshold_k_log": 0.08063261758267146
   },
   "source": "ai/live_inference.py"
 }

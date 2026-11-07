@@ -147,8 +147,8 @@ def load_extras():
 def thresholds(extras) -> tuple[float, float, float | None]:
     """(undervalued ratio, overvalued ratio, k) straight from the AI pipeline."""
     stored = extras.get("thresholds", {})
-    under = float(stored.get("undervalued_if_predicted_at_least_x_actual", 1.0996))
-    over = float(stored.get("overvalued_if_predicted_at_most_x_actual", 0.9094))
+    under = float(stored.get("undervalued_if_predicted_at_least_x_actual", 1.0840))
+    over = float(stored.get("overvalued_if_predicted_at_most_x_actual", 0.9225))
     return under, over, stored.get("k_log")
 
 
@@ -196,13 +196,18 @@ def meta_line(row) -> str:
 
 def face(row, width: int = 150) -> None:
     """The player's photograph, or an initials plate when no image is available."""
-    path = player_media.photo_path(int(row["player_id"]), row.get("name"), row.get("full_name"))
-    if path is not None:
-        st.image(str(path), width=width)
+    uri = player_media.photo_data_uri(int(row["player_id"]), row.get("name"), row.get("full_name"))
+    if uri:
+        # Fixed frame + object-fit: every photo has the same size, so cards line up.
+        st.markdown(
+            f'<img class="fs-photo" src="{uri}" alt="{theme.esc(row.get("name") or "")}" '
+            f'style="max-width:{width}px">',
+            unsafe_allow_html=True,
+        )
         return
     plate = player_media.initials(row.get("name"))
     st.markdown(
-        f'<div class="fs-face" style="width:{width}px;height:{round(width * 1.12)}px">{plate}</div>',
+        f'<div class="fs-face" style="max-width:{width}px">{plate}</div>',
         unsafe_allow_html=True,
     )
 
@@ -245,21 +250,26 @@ def consume_query_page() -> None:
 def sidebar(meta, source: str, total: int) -> None:
     with st.sidebar:
         st.markdown(
-            '<div class="fs-eyebrow">Footstat 304</div>'
-            '<div style="font-size:19px;font-weight:680;letter-spacing:-.02em;margin-bottom:1.1rem">'
-            "Valuation dashboard</div>",
+            '<div class="fs-brand"><div class="fs-logo">FS</div><div>'
+            '<div class="fs-brand-name">Footstat 304</div>'
+            '<div class="fs-brand-sub">Player valuation</div></div></div>'
+            '<div class="fs-nav-label">Pages</div>',
             unsafe_allow_html=True,
         )
         st.radio("Pages", PAGES, key="nav", label_visibility="collapsed")
         theme.divider()
         live = source.startswith("live API")
+        colour = theme.UNDER if live else theme.OVER
         st.markdown(
-            theme.pill("Live API" if live else "Offline snapshot", theme.ACCENT if live else theme.OVER),
+            f'<div class="fs-status"><div class="fs-status-row">'
+            f'<span class="fs-dot" style="background:{colour};box-shadow:0 0 0 3px {theme.rgba(colour, 0.18)}"></span>'
+            f'{"Live API" if live else "Offline snapshot"}</div>'
+            f'<div class="fs-note">{theme.esc(source.replace("live API · ", "Connected to "))}'
+            f'<br>{total:,} players loaded</div></div>',
             unsafe_allow_html=True,
         )
-        theme.note(f"{theme.esc(source)}<br>{total:,} players")
         st.write("")
-        if st.button("Reload data", key="reload"):
+        if st.button("Reload data", key="reload", width="stretch"):
             st.cache_data.clear()
             st.rerun()
         theme.divider()
@@ -272,7 +282,7 @@ def sidebar(meta, source: str, total: int) -> None:
 # -------------------------------------------------------------------------- widgets
 
 
-def player_table(frame: pd.DataFrame, key: str, height: int | None = None) -> None:
+def player_table(frame: pd.DataFrame, key: str, height: int | str = "content", compact: bool = False) -> None:
     """Formatted table with click-through to the player profile."""
     if frame.empty:
         st.info("No players match these filters.")
@@ -281,6 +291,7 @@ def player_table(frame: pd.DataFrame, key: str, height: int | None = None) -> No
         recorded=frame["actual_value_eur"] / 1e6,
         estimate=frame["predicted_value_eur"] / 1e6,
         gap=frame["relative_difference"] * 100,
+        evaluation=frame["evaluation"].map(lambda v: theme.EVAL_SHORT.get(v, v)),
     )[
         ["player_id", "name", "age", "position_group", "overall_rating",
          "recorded", "estimate", "gap", "evaluation"]
@@ -293,9 +304,11 @@ def player_table(frame: pd.DataFrame, key: str, height: int | None = None) -> No
         height=height,
         on_select="rerun",
         selection_mode="single-row",
+        column_order=(["name", "recorded", "estimate", "gap"] if compact else
+                      ["name", "age", "position_group", "overall_rating", "recorded", "estimate", "gap", "evaluation"]),
         column_config={
             "player_id": st.column_config.NumberColumn("ID", width="small"),
-            "name": st.column_config.TextColumn("Player"),
+            "name": st.column_config.TextColumn("Player", width=None if compact else "medium"),
             "age": st.column_config.NumberColumn("Age", width="small"),
             "position_group": st.column_config.TextColumn("Pos", width="small"),
             "overall_rating": st.column_config.ProgressColumn(
@@ -303,7 +316,7 @@ def player_table(frame: pd.DataFrame, key: str, height: int | None = None) -> No
             ),
             "recorded": st.column_config.NumberColumn("Recorded", format="€%.1fM", width="small"),
             "estimate": st.column_config.NumberColumn("Estimate", format="€%.1fM", width="small"),
-            "gap": st.column_config.NumberColumn("Gap", format="%+.1f%%", width="small"),
+            "gap": st.column_config.NumberColumn("Gap", format="%+.0f%%", width="small"),
             "evaluation": st.column_config.TextColumn("Verdict"),
         },
     )
@@ -328,7 +341,9 @@ def radar_figure(rows, names, colors=None):
                 hovertemplate="%{theta}: %{r:.0f}<extra></extra>",
             )
         )
-    return theme.style_fig(figure, height=340, legend=len(rows) > 1)
+    figure = theme.style_fig(figure, height=360, legend=len(rows) > 1)
+    figure.update_layout(margin=dict(l=70, r=70, t=50 if len(rows) > 1 else 30, b=30))
+    return figure
 
 
 # --------------------------------------------------------------------------- pages
@@ -352,10 +367,10 @@ def page_overview(frame, meta, extras):
     with cards[0]:
         theme.stat("Players", f"{len(frame):,}", "2019 attribute snapshot")
     with cards[1]:
-        theme.stat("Potentially undervalued", f"{under:,}",
+        theme.stat("Undervalued", f"{under:,}",
                    f"{under / total * 100:.1f}% of the table", theme.UNDER)
     with cards[2]:
-        theme.stat("Potentially overvalued", f"{over:,}",
+        theme.stat("Overvalued", f"{over:,}",
                    f"{over / total * 100:.1f}% of the table", theme.OVER)
     with cards[3]:
         theme.stat("Median gap", pct(median_gap), "estimate vs recorded value")
@@ -365,14 +380,14 @@ def page_overview(frame, meta, extras):
     spotlight = valued.nlargest(6, "actual_value_eur")
     for column, (_, player) in zip(st.columns(6, gap="small"), spotlight.iterrows()):
         with column:
-            face(player, width=104)
+            face(player, width=220)
             st.markdown(
-                f'<div class="fs-mini">{theme.esc(player["name"])}</div>'
-                f'<div class="fs-mini-sub">{eur(player["actual_value_eur"])} recorded · '
+                f'<div class="fs-tile-name" title="{theme.esc(player["name"])}">{theme.esc(player["name"])}</div>'
+                f'<div class="fs-tile-sub"><b>{eur(player["actual_value_eur"])}</b> recorded<br>'
                 f'{eur(player["predicted_value_eur"])} estimate</div>',
                 unsafe_allow_html=True,
             )
-            if st.button("Open", key=f"spot_{int(player['player_id'])}"):
+            if st.button("View profile", key=f"spot_{int(player['player_id'])}", width="stretch"):
                 open_player(int(player["player_id"]))
 
     st.write("")
@@ -389,10 +404,10 @@ def page_overview(frame, meta, extras):
     undervalued, overvalued = st.columns(2, gap="medium")
     with undervalued:
         theme.note(f"<b style='color:{theme.UNDER}'>Estimate far above the recorded value</b>")
-        player_table(valued.nlargest(8, "value_difference_eur"), key="ov_under", height=318)
+        player_table(valued.nlargest(8, "value_difference_eur"), key="ov_under", compact=True)
     with overvalued:
         theme.note(f"<b style='color:{theme.OVER}'>Estimate far below the recorded value</b>")
-        player_table(valued.nsmallest(8, "value_difference_eur"), key="ov_over", height=318)
+        player_table(valued.nsmallest(8, "value_difference_eur"), key="ov_over", compact=True)
     theme.note("Click any row to open that player's profile.")
 
 
@@ -427,10 +442,11 @@ def scatter_figure(valued: pd.DataFrame, extras):
     figure.add_trace(go.Scatter(x=[low, high], y=[low / over, high / over], mode="lines",
                                 showlegend=False,
                                 line={**line, "color": "rgba(148,163,184,0.25)"}, hoverinfo="skip"))
+    ticks = dict(tickvals=[0.1, 1, 10, 100], ticktext=["€0.1M", "€1M", "€10M", "€100M"])
     figure.update_xaxes(type="log", range=[math.log10(low), math.log10(high)],
-                        title="Model estimate (€ millions)")
+                        title="Model estimate", **ticks)
     figure.update_yaxes(type="log", range=[math.log10(low), math.log10(high)],
-                        title="Recorded value (€ millions)")
+                        title="Recorded value", **ticks)
     return theme.style_fig(figure, height=380)
 
 
@@ -438,6 +454,8 @@ def mix_figure(frame: pd.DataFrame, meta):
     order = [e for e in meta.get("evaluations", []) if e and e != NO_EVAL]
     groups = sorted(frame["position_group"].dropna().unique())
     counts = pd.crosstab(frame["position_group"], frame["evaluation"]).reindex(groups).fillna(0)
+    names = {"GK": "Goalkeepers", "DEF": "Defenders", "MID": "Midfielders", "FWD": "Forwards"}
+    counts.index = [names.get(g, g) for g in counts.index]
     figure = go.Figure()
     for label in order:
         if label not in counts.columns:
@@ -452,7 +470,7 @@ def mix_figure(frame: pd.DataFrame, meta):
                 hovertemplate="%{y} · %{x:,} players<extra></extra>",
             )
         )
-    figure.update_layout(barmode="stack")
+    figure.update_layout(barmode="stack", legend_traceorder="normal")
     figure.update_xaxes(title="Players")
     return theme.style_fig(figure, height=380)
 
@@ -477,10 +495,9 @@ def page_explorer(frame, meta, extras):
         rating_low = int(frame["overall_rating"].min())
         rating = second[1].slider("Minimum rating", rating_low, int(frame["overall_rating"].max()),
                                   rating_low, key="ex_rating")
-        sort_label = second[2].selectbox("Sort by", list(SORTS), key="ex_sort")
-        direction = second[3].segmented_control(
-            "Order", ["Descending", "Ascending"], default="Descending", key="ex_dir"
-        ) or "Descending"
+        sort_label = second[2].selectbox("Sort by", list(SORTS), index=list(SORTS).index("Recorded value"),
+                                         key="ex_sort")
+        direction = second[3].selectbox("Order", ["Descending", "Ascending"], key="ex_dir")
 
     data = frame
     if query.strip():
@@ -594,7 +611,7 @@ def page_profile(frame, meta, extras):
     if k:
         buffer_note += (
             f" The band comes from the model's own out-of-fold error (k = {float(k):.4f} log units, "
-            "roughly ±10%), so small differences are treated as noise rather than a finding."
+            f"roughly ±{(under - 1) * 100:.0f}%), so small differences are treated as noise rather than a finding."
         )
     theme.note(buffer_note)
 
@@ -657,7 +674,7 @@ def buffer_figure(row, extras):
         )
     figure = theme.style_fig(figure, height=210)
     figure.update_yaxes(visible=False, range=[0.55, 1.45])
-    figure.update_xaxes(title="€ millions")
+    figure.update_xaxes(tickprefix="€", ticksuffix="M")
     return figure
 
 
@@ -719,7 +736,7 @@ def page_compare(frame, meta, extras):
         )
         theme.note("Player A is read first; the last column names whoever is higher.")
     with chart_col:
-        theme.section("Value against estimate", "€ millions")
+        theme.section("Value against estimate")
         figure = go.Figure()
         figure.add_trace(go.Bar(
             x=["Recorded", "Estimate"],
@@ -736,7 +753,7 @@ def page_compare(frame, meta, extras):
             hovertemplate="%{x}: €%{y:.1f}M<extra></extra>",
         ))
         figure.update_layout(barmode="group")
-        figure.update_yaxes(title="€ millions")
+        figure.update_yaxes(tickprefix="€", ticksuffix="M")
         theme.chart(theme.style_fig(figure, height=320), key=f"cmp_bars_{left_id}_{right_id}")
         theme.note("An empty bar means the dataset records no value for that player.")
 
@@ -750,9 +767,8 @@ def page_compare(frame, meta, extras):
                 pct(row["relative_difference"]),
                 f"{eur(row['actual_value_eur'])} recorded · {eur(row['predicted_value_eur'])} estimate",
                 colour,
+                badge=theme.pill(theme.EVAL_SHORT.get(str(row["evaluation"]), str(row["evaluation"])), colour),
             )
-            st.markdown(theme.pill(theme.EVAL_SHORT.get(str(row["evaluation"]), str(row["evaluation"])), colour),
-                        unsafe_allow_html=True)
 
 
 def page_model(frame, meta, extras):
@@ -775,9 +791,9 @@ def page_model(frame, meta, extras):
         best = forest.iloc[0] if not forest.empty else scored.iloc[0]
         cards = st.columns(4, gap="medium")
         with cards[0]:
-            theme.stat("Model in the table", "Random forest", "chosen over ridge regression")
+            theme.stat("Model used", "Random forest", "chosen over ridge regression")
         with cards[1]:
-            theme.stat("Mean absolute error", eur(best.get("MAE_eur")), "on held-out players")
+            theme.stat("Mean abs. error", eur(best.get("MAE_eur")), "on held-out test players")
         with cards[2]:
             theme.stat("R² on log value", f"{float(best.get('R2_log', float('nan'))):.3f}",
                        "log scale, less skewed by superstars")
@@ -823,8 +839,8 @@ def page_model(frame, meta, extras):
   incomplete: **{missing:,} of {len(frame):,} players have no recorded value at all**, so they
   can never be called undervalued or overvalued.
 - Because a model estimate is not an exact figure, a small difference is not evidence.
-  The comparison uses a buffer of **k = {f"{float(k):.4f}" if k else "0.0949"} log units**
-  (two robust standard deviations of the model's out-of-fold error, roughly ±10%).
+  The comparison uses a buffer of **k = {f"{float(k):.4f}" if k else "0.0806"} log units**
+  (two robust standard deviations of the model's out-of-fold error, roughly ±{(under - 1) * 100:.0f}%).
 - A player is called **potentially undervalued** only when the estimate is at least
   **{under:.4f}×** the recorded value, and **potentially overvalued** only when it is at
   most **{over:.4f}×**. Everything in between is **fairly valued** — deliberately, not by
@@ -849,30 +865,40 @@ value", nothing stronger.
 def error_figure(errors: pd.DataFrame):
     figure = go.Figure()
     colours = [theme.FAIR, theme.ACCENT]
+    labels = {"GK": "GK", "DEF": "DEF", "MID": "MID", "FWD": "FWD",
+              "< EUR 1M": "<€1M", "EUR 1M-10M": "€1–10M", "> EUR 10M": ">€10M"}
     for colour, (model, part) in zip(colours, errors.groupby("model", sort=True)):
         figure.add_trace(go.Bar(
-            x=part["group"].astype(str),
+            x=[labels.get(g, g) for g in part["group"].astype(str)],
             y=part["MAE_eur"] / 1e6,
             name=str(model),
             marker_color=colour,
             hovertemplate="%{x}: €%{y:.1f}M MAE<extra></extra>",
         ))
-    figure.update_layout(barmode="group")
-    figure.update_yaxes(title="MAE (€ millions)")
-    return theme.style_fig(figure, height=330)
+    figure.update_layout(barmode="group", bargap=0.28, bargroupgap=0.08)
+    figure.update_xaxes(tickangle=0)
+    figure.update_yaxes(title="Mean abs. error", tickprefix="€", ticksuffix="M")
+    return theme.style_fig(figure, height=340)
 
 
 def importance_figure(importance: pd.DataFrame):
     if importance.empty:
         return theme.style_fig(go.Figure(), height=330)
     top = importance.head(12).iloc[::-1]
+    def pretty(name: str) -> str:
+        name = str(name)
+        if name.startswith("position_group_"):
+            return "Position: " + name.removeprefix("position_group_")
+        if name.startswith("preferred_foot_"):
+            return "Foot: " + name.removeprefix("preferred_foot_")
+        return name.split("(")[0].replace("_", " ").strip().capitalize()
     figure = go.Figure(go.Bar(
-        x=top["importance"], y=top["feature"].astype(str), orientation="h",
+        x=top["importance"], y=[pretty(n) for n in top["feature"]], orientation="h",
         marker_color=theme.ACCENT, opacity=0.85,
         hovertemplate="%{y}: %{x:.3f}<extra></extra>",
     ))
     figure.update_xaxes(title="Relative importance")
-    return theme.style_fig(figure, height=330, legend=False)
+    return theme.style_fig(figure, height=340, legend=False)
 
 
 # ---------------------------------------------------------------------------- main
@@ -911,9 +937,11 @@ def main() -> None:
     }.get(page, page_overview)(frame, meta, extras)
 
     theme.divider()
-    theme.note(
-        "Footstat 304 · AI-based player evaluation · estimates from a 2019 attribute snapshot, "
-        f"judged against a ±10% error buffer · {len(frame):,} players"
+    st.markdown(
+        '<div class="fs-footer"><span>Footstat 304 · ICT304 · AI-based player evaluation</span>'
+        f'<span>2019 attribute snapshot · ±{(thresholds(extras)[0] - 1) * 100:.0f}% error buffer · '
+        f'{len(frame):,} players</span></div>',
+        unsafe_allow_html=True,
     )
 
 

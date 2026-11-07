@@ -27,6 +27,7 @@ demos, not as a second source of truth.
 | `api_client.py` | the only place that talks HTTP; base URL from `FOOTSTAT_API` |
 | `player_media.py` | player photographs: committed assets, disk cache, live lookup |
 | `theme.py` | palette, stylesheet, cards, Plotly defaults |
+| `static/fonts/` | the Inter typeface (SIL Open Font Licence), served by Streamlit so the dashboard looks the same offline |
 | `assets/players/` | 16 committed photographs, one per player id, with sources in `README.md` |
 | `requirements.txt` | pinned `pip install -r frontend/requirements.txt` |
 
@@ -40,7 +41,7 @@ demos, not as a second source of truth.
   valued. Colour never carries meaning alone — every colour is paired with a
   label.
 - **The buffer is visible, not just described.** The profile page draws the
-  no-call band around the estimate, so the ±10% tolerance that decides the
+  no-call band around the estimate, so the ±8% tolerance (from `thresholds.json`) that decides the
   verdict is something you can see rather than a footnote.
 - **Click-through tables.** Selecting a row in any table opens that player's
   profile; the jump is applied before the navigation radio is built, which is

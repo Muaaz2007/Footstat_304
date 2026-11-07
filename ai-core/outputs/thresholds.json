@@ -1,8 +1,8 @@
 {
   "rule": "log(predicted/actual) > +k -> Undervalued; < -k -> Overvalued; else Fairly Valued",
   "k_sigma": 2.0,
-  "robust_sigma_log": 0.04746245158047261,
-  "k_log": 0.09492490316094522,
-  "undervalued_if_predicted_at_least_x_actual": 1.099576277322749,
-  "overvalued_if_predicted_at_most_x_actual": 0.9094412280654165
+  "robust_sigma_log": 0.04031630879133573,
+  "k_log": 0.08063261758267146,
+  "undervalued_if_predicted_at_least_x_actual": 1.0839725909352218,
+  "overvalued_if_predicted_at_most_x_actual": 0.9225325514340058
 }
